@@ -1,28 +1,30 @@
-# Contoso RSS Feed Reader - Project Goals
+# Contoso Marketing Attribution Reporter - Project Goals
 
 ## Purpose
 
-Contoso Corporation requires a lightweight RSS/Atom feed reader application that enables employees to subscribe to and read content from RSS and Atom feeds. The application is intended for internal use and should demonstrate core feed-reading capabilities.
+Contoso Corporation needs a Marketing Attribution Reporter tool that ingests conversion events, attributes them to marketing touchpoints, and produces channel-level ROI reports. The marketing team currently has no systematic way to determine which channels are driving conversions and what their return on investment is.
 
 ## Scope
 
-The project scope covers the development of an initial MVP (Minimum Viable Product) version of the RSS Feed Reader application. The MVP focuses on the most essential capabilities needed to demonstrate the core value proposition.
+The project scope covers the development of an initial MVP (Minimum Viable Product) version of the Marketing Attribution Reporter. The MVP focuses on the core data pipeline: ingest conversion events via API, apply last-touch attribution, and generate a channel-level ROI summary.
 
 ### MVP Scope
 
-- Users can add RSS/Atom feed subscriptions by providing a feed URL.
-- Users can view a list of their subscribed feeds.
-- Users can view feed items (articles) from their subscribed feeds.
-- Feed data is persisted locally so subscriptions survive application restarts.
+- Ingest conversion events via a REST API (each event includes a conversion value, timestamp, and associated marketing touchpoints).
+- Ingest marketing touchpoint data (channel, campaign, timestamp, user/session identifier).
+- Apply last-touch attribution model to assign conversion credit to the final touchpoint before conversion.
+- Generate a channel-level ROI summary report showing total spend, total attributed revenue, and ROI per channel.
+- Persist all events and attribution data locally.
 
 ### Out of Scope for MVP
 
 - User authentication and authorization.
-- Feed categorization or tagging.
-- Full-text search across feed items.
-- Social features (sharing, commenting).
-- Mobile-specific UI optimizations.
-- Cloud deployment or multi-user support.
+- First-touch and linear attribution models (future phases).
+- Real-time streaming ingestion (batch API only for MVP).
+- Dashboard UI with charts and visualizations.
+- Multi-tenant support.
+- Data export to external BI tools.
+- Campaign-level drill-down reports.
 
 ## Delivery Approach
 
@@ -32,40 +34,44 @@ The project follows a spec-driven development (SDD) methodology using GitHub Spe
 
 ### Phase 1: MVP (Current)
 
-Deliver the core feed subscription and reading capabilities. The MVP includes:
+Deliver the core event ingestion, last-touch attribution, and channel-level ROI reporting. The MVP includes:
 
-- Feed subscription management (add feeds by URL).
-- Feed item display (list articles from subscribed feeds).
+- Conversion event ingestion API.
+- Touchpoint data ingestion API.
+- Last-touch attribution engine.
+- Channel-level ROI summary report endpoint.
 - Local data persistence (SQLite).
-- Basic error handling for invalid URLs and unreachable feeds.
+- Basic input validation and error handling.
 
-### Phase 2: Enhanced Features (Future)
+### Phase 2: Enhanced Attribution Models (Future)
 
-After MVP sign-off, additional features will be requested:
+After MVP sign-off, additional attribution models will be added:
 
-- Feed refresh and auto-update.
-- Mark articles as read/unread.
-- Feed categorization.
-- Improved error handling and retry logic.
-- UI/UX enhancements.
+- First-touch attribution model.
+- Linear (equal-weight) attribution model.
+- Time-decay attribution model.
+- Model comparison reports.
 
-### Phase 3: Advanced Features (Future)
+### Phase 3: Advanced Reporting & Integration (Future)
 
-- Full-text search.
-- Export/import feed subscriptions (OPML).
-- Notification system for new articles.
+- Campaign-level drill-down reports.
+- Dashboard UI with charts and visualizations.
+- Data export (CSV, JSON) for external BI tools.
+- Webhook/event stream ingestion.
+- Multi-tenant support.
 
 ## Quality Goals
 
-- **Reliability**: The application should handle common error scenarios gracefully (invalid URLs, network issues, malformed feeds).
-- **Maintainability**: Code should be well-structured, following clean architecture principles, to support future feature additions.
-- **Performance**: Feed fetching and rendering should be responsive for a reasonable number of subscriptions (up to 50 feeds).
-- **Usability**: The UI should be clean, intuitive, and accessible.
+- **Data Accuracy**: Attribution calculations MUST be deterministic and auditable. The same input data MUST always produce the same attribution results.
+- **Reliability**: The API should handle malformed events gracefully without corrupting existing data.
+- **Maintainability**: Code should follow clean architecture principles to support adding new attribution models without modifying existing ones.
+- **Performance**: The system should handle ingestion of up to 10,000 events and generate reports within reasonable response times.
 
 ## Standards and Guidelines
 
 - Follow C# coding conventions and .NET best practices.
 - Use consistent naming conventions throughout the codebase.
 - Implement proper error handling and logging.
-- Write clean, readable code with appropriate separation of concerns.
-- Use dependency injection for testability and loose coupling.
+- All monetary values MUST use decimal types to avoid floating-point precision errors.
+- Attribution logic MUST be separated from data access and API concerns.
+- Every attribution calculation MUST be traceable back to source events.

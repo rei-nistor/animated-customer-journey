@@ -1,129 +1,152 @@
-# Feature Specification: RSS Feed Reader MVP
+# Feature Specification: Marketing Attribution Reporter MVP
 
 **Feature Branch**: `001-rss-feed-reader`  
 **Created**: 2026-03-16  
 **Status**: Draft  
-**Input**: User description: "MVP RSS reader: a simple RSS/Atom feed reader that demonstrates the most basic capability (add subscriptions) without the complexity of a production-ready application."
+**Input**: User description: "Marketing Attribution Reporter: A tool that ingests conversion events and attributes them to marketing touchpoints, producing channel-level ROI reports. MVP scope: Ingest conversion events via API, apply last-touch attribution, generate a channel-level ROI summary."
 
 ## User Scenarios & Testing *(mandatory)*
 
-### User Story 1 - Add a Feed Subscription (Priority: P1)
+### User Story 1 - Ingest Conversion Events (Priority: P1)
 
-As a user, I want to add an RSS or Atom feed by entering its URL so that I can subscribe to content from that source and receive updates.
+As a marketing analyst, I want to submit conversion events (purchases, sign-ups) via API so that the system has the raw data needed for attribution analysis.
 
-**Why this priority**: This is the core capability of the entire application. Without the ability to add subscriptions, no other features have value. This is the minimum viable action a user must perform.
+**Why this priority**: Without conversion data, nothing else works. This is the foundational data input that everything depends on.
 
-**Independent Test**: Can be fully tested by entering a feed URL, submitting it, and verifying it appears in the subscription list. Delivers the foundational value of capturing user intent to follow a feed.
+**Independent Test**: Can be fully tested by POSTing a conversion event via curl/Swagger and verifying it returns a 201 with the persisted event. Delivers value by establishing the data ingestion pipeline.
 
 **Acceptance Scenarios**:
 
-1. **Given** no subscriptions have been added, **When** the user loads the page, **Then** an empty state is shown (e.g., "No subscriptions yet" message)
-2. **Given** the subscription management interface is loaded, **When** the user enters a valid feed URL in the input field and clicks "Add Subscription", **Then** the system accepts the URL and confirms the subscription was added
-3. **Given** the user has entered a feed URL, **When** the user submits the form, **Then** the input field is cleared and ready for another URL
-4. **Given** the user enters an empty string or whitespace-only input, **When** they attempt to add the subscription, **Then** the system prevents submission (basic client-side validation)
-5. **Given** the user enters a string that is not a valid URL format, **When** they attempt to add the subscription, **Then** the system displays an error message indicating the URL is malformed
-6. **Given** the user has added one subscription, **When** the page displays, **Then** the subscription URL is visible in the list
-7. **Given** the user has added multiple subscriptions, **When** the page displays, **Then** all subscription URLs are visible in the list in the order they were added (newest last)
+1. **Given** the API is running, **When** I POST a valid conversion event (event ID, user/session ID, conversion value, timestamp), **Then** the system returns 201 Created with the event details
+2. **Given** I submit a conversion event missing required fields (e.g., no user ID), **When** the API processes it, **Then** the system returns 400 Bad Request with details about which fields are missing
+3. **Given** I submit a conversion event with a negative conversion value, **When** the API validates it, **Then** the system returns 400 indicating the value must be positive
+4. **Given** I submit a conversion event with an invalid timestamp format, **When** the API validates it, **Then** the system returns 400 indicating the timestamp must be ISO 8601
+5. **Given** a conversion event with a specific event ID already exists, **When** I submit another event with the same ID, **Then** the system returns 409 Conflict indicating the duplicate
+6. **Given** I have submitted multiple conversion events, **When** the application restarts, **Then** all previously submitted events are still available
 
 ---
 
-### User Story 2 - View Feed Items from a Subscription (Priority: P2)
+### User Story 2 - Ingest Marketing Touchpoints (Priority: P1)
 
-As a user, I want to view articles from a subscribed feed so that I can read the latest content from my favorite sources.
+As a marketing analyst, I want to submit marketing touchpoint data (ad clicks, email opens, organic visits) via API so that the system knows which marketing interactions users had before converting.
 
-**Why this priority**: Once subscriptions exist, viewing the actual feed content is the primary value delivery. Without this, subscriptions are just a list of URLs with no utility.
+**Why this priority**: Touchpoints are the other half of the attribution equation. Without them, conversions can't be attributed to any channel.
 
-**Independent Test**: Can be tested by selecting a previously added subscription and verifying that feed items (article titles, dates, summaries) are displayed. Requires US1 to have at least one subscription.
+**Independent Test**: Can be tested by POSTing touchpoint data and verifying persistence. Delivers the second data input required for attribution.
 
 **Acceptance Scenarios**:
 
-1. **Given** the user has at least one subscription, **When** the user selects a subscribed feed, **Then** the system fetches and displays the feed items (articles) from that feed
-2. **Given** feed items are displayed, **When** the user views the list, **Then** each item shows at minimum the article title
-3. **Given** feed items are displayed, **When** the user views the list, **Then** items may also show the publication date, a summary/description, and a link to the full article
-4. **Given** feed items are available, **When** they are displayed, **Then** they appear in reverse chronological order (newest first)
-5. **Given** a subscribed feed cannot be reached (network error), **When** the user attempts to view its items, **Then** the system displays an appropriate error message without crashing
-6. **Given** a subscribed feed returns malformed or invalid content, **When** the system attempts to parse it, **Then** the system displays an error message indicating the feed could not be read
+1. **Given** the API is running, **When** I POST a valid touchpoint (touchpoint ID, user/session ID, channel name, timestamp), **Then** the system returns 201 Created with the touchpoint details
+2. **Given** I submit a touchpoint with optional fields (campaign name, cost), **When** the API processes it, **Then** the optional fields are stored correctly
+3. **Given** I submit a touchpoint missing the channel name, **When** the API validates it, **Then** the system returns 400 indicating channel is required
+4. **Given** I submit a touchpoint with a negative cost value, **When** the API validates it, **Then** the system returns 400 indicating cost must be non-negative
+5. **Given** a touchpoint with a specific ID already exists, **When** I submit another with the same ID, **Then** the system returns 409 Conflict
+6. **Given** I submit touchpoints out of chronological order, **When** attribution runs, **Then** the system uses timestamps (not submission order) for ordering
 
 ---
 
-### User Story 3 - Persistent Subscriptions Across Restarts (Priority: P3)
+### User Story 3 - Last-Touch Attribution (Priority: P2)
 
-As a user, I want my feed subscriptions to be saved so that I don't have to re-add them every time I restart the application.
+As a marketing analyst, I want the system to attribute each conversion to the last marketing touchpoint before that conversion so that I can understand which channel closed the deal.
 
-**Why this priority**: Persistence converts the app from a throwaway demo into a usable tool. Without it, users lose all data on restart, which makes the app impractical for real use.
+**Why this priority**: Attribution is the core business logic that transforms raw data into actionable insights. It depends on both event types being ingested first.
 
-**Independent Test**: Can be tested by adding subscriptions, stopping and restarting the application, then verifying subscriptions are still present.
+**Independent Test**: Can be tested by submitting a known sequence of touchpoints and a conversion, then verifying the attribution assigns 100% credit to the correct last touchpoint.
 
 **Acceptance Scenarios**:
 
-1. **Given** the user has added one or more subscriptions, **When** the application is stopped and restarted, **Then** all previously added subscriptions are loaded and displayed automatically
-2. **Given** the user adds a new subscription, **When** the subscription is confirmed, **Then** the subscription is persisted immediately (not deferred or batched)
-3. **Given** the user has subscriptions saved from a previous session, **When** the application starts, **Then** the subscription list displays all saved entries without requiring user action
+1. **Given** user "U1" has touchpoints [email at T1, paid-search at T2, social at T3] and converts at T4, **When** last-touch attribution runs, **Then** 100% of the conversion value is attributed to "social" (the last touchpoint before conversion)
+2. **Given** user "U2" converts but has no touchpoints, **When** attribution runs, **Then** the conversion is marked as "unattributed"
+3. **Given** user "U3" has touchpoints after the conversion timestamp, **When** attribution runs, **Then** only touchpoints before the conversion are considered
+4. **Given** the same input data, **When** attribution runs multiple times, **Then** the results are identical every time (deterministic)
+5. **Given** new touchpoint data is added for a user who already has attributed conversions, **When** attribution is recalculated, **Then** the results reflect the updated touchpoint data
+
+---
+
+### User Story 4 - Channel-Level ROI Report (Priority: P3)
+
+As a marketing analyst, I want to generate a channel-level ROI report so that I can see which marketing channels deliver the best return on investment.
+
+**Why this priority**: The report is the deliverable that stakeholders care about. It depends on attribution being complete but is the ultimate value output.
+
+**Independent Test**: Can be tested by ingesting known events/touchpoints, running attribution, then calling the report endpoint and verifying the channel-level numbers match expected calculations.
+
+**Acceptance Scenarios**:
+
+1. **Given** attributed conversions exist across multiple channels, **When** I request the ROI report, **Then** the response contains one entry per channel with: channel name, total attributed revenue, total cost, number of conversions, and ROI percentage
+2. **Given** a channel has $500 in attributed revenue and $200 in costs, **When** the report calculates ROI, **Then** ROI = ((500 - 200) / 200) * 100 = 150%
+3. **Given** a channel has attributed revenue but zero costs, **When** the report calculates ROI, **Then** ROI is shown as "N/A" (not infinity or error)
+4. **Given** some conversions are unattributed, **When** the report is generated, **Then** unattributed conversions appear as a separate "Unattributed" entry
+5. **Given** no data has been ingested yet, **When** I request the report, **Then** the system returns an empty report (not an error)
+6. **Given** I specify a date range filter, **When** the report is generated, **Then** only conversions within that date range are included
 
 ---
 
 ### Edge Cases
 
-- What happens when the user enters a URL that is valid in format but does not point to an actual RSS/Atom feed? The system should attempt to fetch it and display an error if the content is not a valid feed.
-- What happens when the same feed URL is added twice? The system should either prevent duplicate entries or inform the user the feed is already subscribed.
-- What happens when the user's network connection is unavailable while fetching feed items? The system should display a clear connectivity error message.
-- What happens when a feed contains zero items? The system should display an empty state message (e.g., "No articles found in this feed").
-- What happens when a feed URL exceeds 2048 characters? The system should reject it with a validation error.
+- What happens when two touchpoints for the same user have the exact same timestamp? The system should use the touchpoint with the higher ID (or the one submitted last) as a tiebreaker.
+- What happens when a conversion value is extremely large (e.g., 999999999.99)? The system should accept it as long as it's within decimal precision limits.
+- What happens when hundreds of touchpoints exist for a single user? The system should still correctly identify the last one before each conversion.
+- What happens when a channel name contains special characters or unicode? The system should accept and store it as-is, aggregating correctly in reports.
+- What happens when the database file is deleted? The system should recreate it on startup with an empty schema (EF migrations).
 
 ## Requirements *(mandatory)*
 
 ### Functional Requirements
 
-- **FR-001**: System MUST allow users to add a feed subscription by providing a feed URL
-- **FR-002**: System MUST validate that the submitted URL is a properly formatted URI before accepting it
-- **FR-003**: System MUST reject empty, whitespace-only, or null input when adding a subscription
-- **FR-004**: System MUST reject URLs that exceed 2048 characters in length
-- **FR-005**: System MUST display all current subscriptions in a list, ordered by the date they were added (newest last)
-- **FR-006**: System MUST show an empty state message when no subscriptions exist
-- **FR-007**: System MUST clear the input field after a subscription is successfully added
-- **FR-008**: System MUST display a confirmation when a subscription is added successfully
-- **FR-009**: System MUST allow users to select a subscription and view its feed items
-- **FR-010**: System MUST fetch and parse RSS 2.0 and Atom feed formats from subscribed URLs
-- **FR-011**: System MUST display feed items with at minimum the article title
-- **FR-012**: System MUST display feed items in reverse chronological order (newest first)
-- **FR-013**: System MUST display an error message when a feed cannot be fetched (network error, unreachable URL)
-- **FR-014**: System MUST display an error message when feed content is malformed or not a valid RSS/Atom format
-- **FR-015**: System MUST persist all subscriptions in a local database
-- **FR-016**: System MUST load all previously saved subscriptions automatically on application startup
-- **FR-017**: System MUST persist a new subscription immediately upon confirmation (not batched or deferred)
-- **FR-018**: System MUST NOT expose internal error details or stack traces to users
+- **FR-001**: System MUST accept conversion events via POST API with: event ID, user/session ID, conversion value (decimal), and timestamp (ISO 8601)
+- **FR-002**: System MUST validate all required fields on conversion events and return 400 with details for invalid input
+- **FR-003**: System MUST reject duplicate conversion event IDs with 409 Conflict
+- **FR-004**: System MUST validate that conversion values are positive decimal numbers
+- **FR-005**: System MUST accept touchpoints via POST API with: touchpoint ID, user/session ID, channel name, timestamp, and optional campaign name and cost
+- **FR-006**: System MUST validate all required fields on touchpoints and return 400 with details for invalid input
+- **FR-007**: System MUST reject duplicate touchpoint IDs with 409 Conflict
+- **FR-008**: System MUST validate that touchpoint cost (if provided) is a non-negative decimal number
+- **FR-009**: System MUST implement last-touch attribution: for each conversion, assign 100% credit to the most recent touchpoint (by timestamp) for the same user/session before the conversion timestamp
+- **FR-010**: System MUST mark conversions with no matching touchpoints as "unattributed"
+- **FR-011**: Attribution MUST be deterministic — same inputs always produce same results
+- **FR-012**: System MUST provide a report endpoint returning channel-level summary: channel name, total attributed revenue, total cost, conversion count, and ROI percentage
+- **FR-013**: ROI calculation MUST use the formula: ((revenue - cost) / cost) * 100, with "N/A" for zero-cost channels
+- **FR-014**: Report MUST include an "Unattributed" entry for conversions with no matching touchpoints
+- **FR-015**: System MUST persist all events, touchpoints, and attribution data in a local database
+- **FR-016**: System MUST load all previously stored data on application startup
+- **FR-017**: All monetary calculations MUST use decimal types (not floating-point)
+- **FR-018**: System MUST NOT expose internal error details or stack traces in API responses
 
 ### Key Entities
 
-- **Subscription**: Represents a user's subscription to an RSS/Atom feed. Key attributes: unique identifier, feed URL, date added. One subscription maps to one feed URL.
-- **FeedItem**: Represents an individual article or entry from a feed. Key attributes: title, publication date, summary/description, link to full article. A feed item belongs to a subscription (via the feed URL).
+- **ConversionEvent**: A completed business goal. Key attributes: event ID (unique), user/session ID, conversion value (decimal), timestamp, optional metadata.
+- **Touchpoint**: A marketing interaction before conversion. Key attributes: touchpoint ID (unique), user/session ID, channel name, campaign name (optional), timestamp, cost (decimal, optional).
+- **AttributionResult**: The link between a conversion and its attributed touchpoint. Key attributes: conversion event ID, attributed touchpoint ID (nullable for unattributed), attributed value (decimal), attribution model used.
+- **ChannelReport**: An aggregated view for reporting. Key attributes: channel name, total attributed revenue, total cost, conversion count, ROI percentage.
 
 ## Success Criteria *(mandatory)*
 
 ### Measurable Outcomes
 
-- **SC-001**: Users can add a new feed subscription in under 30 seconds (enter URL, submit, see confirmation)
-- **SC-002**: Users can view feed items from a subscription within 10 seconds of selecting it (including network fetch time for typical feeds)
-- **SC-003**: 100% of previously added subscriptions are visible after an application restart
-- **SC-004**: All four user-facing error scenarios (empty input, invalid URL, unreachable feed, malformed feed) display a clear, actionable error message
-- **SC-005**: The application handles up to 50 subscriptions without noticeable performance degradation
+- **SC-001**: Analysts can ingest a conversion event via API in under 1 second (single event POST)
+- **SC-002**: Analysts can ingest a touchpoint via API in under 1 second (single touchpoint POST)
+- **SC-003**: Last-touch attribution produces correct results for a test dataset of 100 conversions with 500 touchpoints across 5 channels
+- **SC-004**: Channel ROI report is generated within 5 seconds for up to 10,000 events
+- **SC-005**: Attribution is deterministic — running the same report twice with no data changes produces identical output
+- **SC-006**: All four validation error scenarios (missing fields, invalid types, negative values, duplicates) return appropriate HTTP error codes and messages
 
 ### Assumptions
 
-- Users have a modern web browser with JavaScript/WebAssembly support
-- Users have a working network connection when fetching feed items (offline reading is out of scope)
-- Feed URLs provided by users point to publicly accessible RSS 2.0 or Atom feeds (authenticated feeds are out of scope)
-- The application is used by a single user at a time (multi-user support is out of scope)
+- Data is ingested via API calls (not file uploads or streaming)
+- The application is used by a single team at a time (multi-tenant is out of scope)
+- Touchpoints and conversions are linked by user/session ID provided by the caller
+- All timestamps are provided by the caller (the system does not generate them)
+- The system runs locally; cloud deployment is out of scope for MVP
 
 ### Out of Scope
 
 - User authentication and authorization
-- Feed categorization or tagging
-- Full-text search across feed items
-- Social features (sharing, commenting)
-- Mobile-specific UI optimizations
-- Cloud deployment or multi-user support
-- Feed auto-refresh or background polling
-- Marking articles as read/unread
-- OPML import/export
-- Removing or editing existing subscriptions (future enhancement)
+- First-touch, linear, or time-decay attribution models (Phase 2)
+- Dashboard UI with charts and visualizations (Phase 3)
+- Real-time streaming ingestion
+- Multi-tenant support
+- Data export to CSV or external BI tools
+- Campaign-level drill-down reports
+- Bulk import of historical data
+- Removing or editing existing events/touchpoints (future enhancement)

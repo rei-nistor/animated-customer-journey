@@ -1,4 +1,4 @@
-# Specification Quality Checklist: RSS Feed Reader MVP
+# Specification Quality Checklist: Marketing Attribution Reporter MVP
 
 **Purpose**: Validate specification completeness and quality before proceeding to planning  
 **Created**: 2026-03-16  
@@ -32,7 +32,8 @@
 ## Notes
 
 - All checklist items passed validation.
-- The specification is ready for `/speckit.clarify` or `/speckit.plan`.
-- 18 functional requirements defined across 3 user stories with 16 acceptance scenarios.
+- The specification is ready for `/speckit.plan`.
+- 18 functional requirements defined across 4 user stories with 23 acceptance scenarios.
 - 5 edge cases identified and documented.
-- 5 measurable success criteria defined.
+- 6 measurable success criteria defined.
+- 4 key entities: ConversionEvent, Touchpoint, AttributionResult, ChannelReport.
