@@ -1,68 +1,88 @@
-# Quickstart: Marketing Attribution Reporter MVP
+# Quickstart: Animated Customer Journey MVP
 
-**Feature**: `001-rss-feed-reader` | **Date**: 2026-03-16
+**Feature**: `001-animated-customer-journey` | **Date**: 2026-03-16
 
 ## Prerequisites
 
-- .NET 8.0 SDK (`dotnet --version` should show 8.x)
-- On macOS with Homebrew: `export DOTNET_ROOT="/opt/homebrew/opt/dotnet@8/libexec"` and add to PATH
+- Node.js 20 LTS (`node --version` should show 20.x)
+- npm 10+ (`npm --version`)
+- PostgreSQL 16+ running locally (or via Docker)
+- A database created: `createdb animated_customer_journey`
 
-## Build & Run
+## Setup
 
 ```bash
 # From the repository root
-cd MarketingAttributionReporter
+cd animated-customer-journey
 
-# Restore packages and build
-dotnet build
+# Install all dependencies
+npm install
 
-# Apply EF Core migrations (creates the SQLite database)
-dotnet ef database update --project AttributionReporter.Data --startup-project AttributionReporter.API
+# Create .env file for the API
+cat > apps/api/.env << 'EOF'
+DATABASE_URL=postgresql://localhost:5432/animated_customer_journey
+PORT=5151
+EOF
 
-# Run the API
-dotnet run --project AttributionReporter.API
+# Run Drizzle migrations
+npx drizzle-kit push --config=packages/database/drizzle.config.ts
+
+# Build all packages
+npx turbo build
 ```
 
-The API will start on `http://localhost:5151`. Open `http://localhost:5151/swagger` for interactive API docs.
+## Run
+
+```bash
+# Start the API (dev mode with hot reload)
+npm run dev --workspace=apps/api
+
+# In a separate terminal, start the frontend (dev mode)
+npm run dev --workspace=apps/web
+```
+
+- API: `http://localhost:5151`
+- Frontend: `http://localhost:5173`
 
 ## Quick Test: End-to-End Attribution Flow
 
 ### 1. Add touchpoints
 
 ```bash
-# Touchpoint 1: User clicks a paid search ad
+# Touchpoint 1: User clicks a social ad
 curl -X POST http://localhost:5151/api/touchpoints \
   -H "Content-Type: application/json" \
   -d '{
     "touchpointId": "tp-001",
-    "userSessionId": "user-1",
-    "channelName": "paid-search",
-    "campaignName": "spring-2026",
+    "userId": "user-1",
+    "channelName": "Social",
+    "campaignName": "spring-campaign",
     "timestamp": "2026-03-10T09:00:00Z",
-    "cost": 1.50
+    "cost": "1.50"
   }'
 
-# Touchpoint 2: Same user clicks an email link (later)
+# Touchpoint 2: Same user reads a blog post
 curl -X POST http://localhost:5151/api/touchpoints \
   -H "Content-Type: application/json" \
   -d '{
     "touchpointId": "tp-002",
-    "userSessionId": "user-1",
-    "channelName": "email",
-    "campaignName": "newsletter-march",
+    "userId": "user-1",
+    "channelName": "Organic",
+    "campaignName": "blog-seo",
     "timestamp": "2026-03-12T14:00:00Z",
-    "cost": 0.25
+    "cost": "0"
   }'
 
-# Touchpoint 3: Same user visits via organic search (latest before conversion)
+# Touchpoint 3: Same user clicks an email link (latest before conversion)
 curl -X POST http://localhost:5151/api/touchpoints \
   -H "Content-Type: application/json" \
   -d '{
     "touchpointId": "tp-003",
-    "userSessionId": "user-1",
-    "channelName": "organic",
+    "userId": "user-1",
+    "channelName": "Email",
+    "campaignName": "newsletter-march",
     "timestamp": "2026-03-14T11:00:00Z",
-    "cost": 0
+    "cost": "0.25"
   }'
 ```
 
@@ -73,45 +93,82 @@ curl -X POST http://localhost:5151/api/conversion-events \
   -H "Content-Type: application/json" \
   -d '{
     "eventId": "conv-001",
-    "userSessionId": "user-1",
-    "conversionValue": 150.00,
+    "userId": "user-1",
+    "conversionValue": "150.00",
     "timestamp": "2026-03-15T10:00:00Z"
   }'
 ```
 
-### 3. Run attribution
+### 3. Run attribution (all three models)
 
 ```bash
-curl -X POST http://localhost:5151/api/attribution/run
+# Last-touch: 100% to Email
+curl -X POST http://localhost:5151/api/attribution/run \
+  -H "Content-Type: application/json" \
+  -d '{"model": "last-touch"}'
+
+# First-touch: 100% to Social
+curl -X POST http://localhost:5151/api/attribution/run \
+  -H "Content-Type: application/json" \
+  -d '{"model": "first-touch"}'
+
+# Linear: 33.33% each to Social, Organic, Email
+curl -X POST http://localhost:5151/api/attribution/run \
+  -H "Content-Type: application/json" \
+  -d '{"model": "linear"}'
 ```
 
-Expected: `{ "processed": 1, "attributed": 1, "unattributed": 0, "model": "last-touch" }`
-
-The conversion should be attributed to "organic" (the last touchpoint at March 14, before the conversion on March 15).
-
-### 4. Generate ROI report
+### 4. View ROI report (by model)
 
 ```bash
-curl http://localhost:5151/api/reports/channel-roi
+# Last-touch report
+curl http://localhost:5151/api/reports/channel-roi?model=last-touch
+
+# Linear report — credit spread across channels
+curl http://localhost:5151/api/reports/channel-roi?model=linear
 ```
 
-Expected: One channel entry for "organic" with $150 attributed revenue, $0 cost, ROI = N/A (zero cost).
+### 5. Get Sankey data (for visualization)
+
+```bash
+curl http://localhost:5151/api/journeys/sankey?model=last-touch
+```
+
+### 6. Open the frontend
+
+Open `http://localhost:5173` in a browser. You should see:
+- An animated Sankey flow diagram showing the journey: Social → Organic → Email → Conversion
+- A model selector (Last Touch / First Touch / Linear)
+- ROI summary cards
+- Click any channel node to drill down
+
+Toggle between models and watch the credit flow animate!
 
 ## Project Structure
 
 ```
-MarketingAttributionReporter/
-├── AttributionReporter.API/      # REST API (controllers, DTOs, Program.cs)
-├── AttributionReporter.Core/     # Domain models, interfaces, services
-└── AttributionReporter.Data/     # EF Core DbContext, repositories, migrations
+animated-customer-journey/
+├── apps/
+│   ├── api/                 # Express REST API (routes, validation, middleware)
+│   └── web/                 # React + Vite frontend (Sankey, toggle, drill-down)
+├── packages/
+│   ├── attribution/         # Pure TypeScript domain logic (strategies, services)
+│   ├── database/            # Drizzle ORM schema + PostgreSQL connection
+│   └── logger/              # Structured JSON logger
+├── package.json             # Root workspace config
+├── turbo.json               # Turborepo task orchestration
+└── biome.json               # Linting & formatting
 ```
 
 ## Common Tasks
 
 | Task | Command |
 |------|---------|
-| Build | `dotnet build` |
-| Run API | `dotnet run --project AttributionReporter.API` |
-| Add migration | `dotnet ef migrations add <Name> --project AttributionReporter.Data --startup-project AttributionReporter.API` |
-| Apply migrations | `dotnet ef database update --project AttributionReporter.Data --startup-project AttributionReporter.API` |
-| Reset database | Delete `attribution.db` and re-run migrations |
+| Install deps | `npm install` |
+| Build all | `npx turbo build` |
+| Dev API | `npm run dev --workspace=apps/api` |
+| Dev Frontend | `npm run dev --workspace=apps/web` |
+| Test all | `npx turbo test` |
+| Lint/format | `npx turbo lint` |
+| Push migrations | `npx drizzle-kit push --config=packages/database/drizzle.config.ts` |
+| Reset database | `dropdb animated_customer_journey && createdb animated_customer_journey && npx drizzle-kit push` |

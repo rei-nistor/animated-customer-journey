@@ -1,0 +1,28 @@
+{
+    "name": "@acj/api",
+    "version": "0.1.0",
+    "private": true,
+    "type": "module",
+    "scripts": {
+        "build": "tsc",
+        "dev": "tsx watch src/main.ts",
+        "start": "node dist/main.js",
+        "test": "vitest run",
+        "lint": "biome check src/"
+    },
+    "dependencies": {
+        "@acj/attribution": "*",
+        "@acj/database": "*",
+        "@acj/logger": "*",
+        "cors": "^2.8.5",
+        "express": "^4.21.0",
+        "zod": "^3.24.0"
+    },
+    "devDependencies": {
+        "@types/cors": "^2.8.17",
+        "@types/express": "^5.0.0",
+        "tsx": "^4.19.0",
+        "typescript": "^5.9.0",
+        "vitest": "^3.0.0"
+    }
+}

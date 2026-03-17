@@ -1,30 +1,35 @@
-# Contoso Marketing Attribution Reporter - Project Goals
+# Animated Customer Journey — Project Goals
 
 ## Purpose
 
-Contoso Corporation needs a Marketing Attribution Reporter tool that ingests conversion events, attributes them to marketing touchpoints, and produces channel-level ROI reports. The marketing team currently has no systematic way to determine which channels are driving conversions and what their return on investment is.
+Contoso Corporation needs an **Animated Customer Journey Flow** tool that ingests conversion events, attributes them to marketing touchpoints using multiple models, and produces an **interactive Sankey / flow diagram** that animates conversion paths in real time. The marketing team currently has no intuitive way to visualize how customers move through marketing channels before converting — or to understand how different attribution models redistribute credit.
 
 ## Scope
 
-The project scope covers the development of an initial MVP (Minimum Viable Product) version of the Marketing Attribution Reporter. The MVP focuses on the core data pipeline: ingest conversion events via API, apply last-touch attribution, and generate a channel-level ROI summary.
+The project scope covers the development of an MVP version of the Animated Customer Journey application. The MVP delivers a full-stack application with a TypeScript monorepo: an Express API for data ingestion and attribution, plus a React frontend with an animated D3.js Sankey diagram.
 
 ### MVP Scope
 
-- Ingest conversion events via a REST API (each event includes a conversion value, timestamp, and associated marketing touchpoints).
-- Ingest marketing touchpoint data (channel, campaign, timestamp, user/session identifier).
-- Apply last-touch attribution model to assign conversion credit to the final touchpoint before conversion.
-- Generate a channel-level ROI summary report showing total spend, total attributed revenue, and ROI per channel.
-- Persist all events and attribution data locally.
+- Ingest conversion events and marketing touchpoint data via a REST API.
+- Apply three attribution models: **last-touch**, **first-touch**, and **linear** (equal-weight).
+- Generate a channel-level ROI summary report (filterable by model and date range).
+- Display an **animated Sankey flow diagram** where each touchpoint path (Social Ad → Blog Post → Email → Purchase) lights up as a flowing "river" of conversions.
+- **Thicker streams = more conversions** through that path.
+- **Click any node** to drill down: "What happened to people who clicked a Facebook ad?"
+- **Toggle between attribution models** (first-touch, last-touch, linear) and watch the credit **visually shift** between channels in real time.
+- ROI summary cards update alongside the Sankey when the model changes.
+- Persist all events, touchpoints, and attribution data in PostgreSQL.
 
 ### Out of Scope for MVP
 
 - User authentication and authorization.
-- First-touch and linear attribution models (future phases).
-- Real-time streaming ingestion (batch API only for MVP).
-- Dashboard UI with charts and visualizations.
+- Time-decay or position-based attribution models (future enhancement).
+- Real-time streaming ingestion.
 - Multi-tenant support.
-- Data export to external BI tools.
-- Campaign-level drill-down reports.
+- Data export to CSV or external BI tools.
+- Campaign-level drill-down reports (channel-level only for MVP).
+- Bulk import of historical data.
+- Mobile-responsive layout (desktop-only for MVP).
 
 ## Delivery Approach
 
@@ -34,30 +39,34 @@ The project follows a spec-driven development (SDD) methodology using GitHub Spe
 
 ### Phase 1: MVP (Current)
 
-Deliver the core event ingestion, last-touch attribution, and channel-level ROI reporting. The MVP includes:
+Deliver the full-stack animated customer journey application:
 
-- Conversion event ingestion API.
-- Touchpoint data ingestion API.
-- Last-touch attribution engine.
-- Channel-level ROI summary report endpoint.
-- Local data persistence (SQLite).
-- Basic input validation and error handling.
+- TypeScript monorepo (npm workspaces + Turborepo).
+- Express API with Zod validation for conversion events and touchpoints.
+- Three attribution models (last-touch, first-touch, linear) via Strategy pattern.
+- Channel-level ROI report endpoint with model and date range filters.
+- Journey/Sankey data endpoint returning aggregated flow paths.
+- React + Vite frontend with animated D3.js Sankey diagram.
+- Attribution model toggle with smooth 500ms animated transitions.
+- Node drill-down detail panel.
+- ROI summary cards.
+- PostgreSQL persistence via Drizzle ORM.
 
-### Phase 2: Enhanced Attribution Models (Future)
+### Phase 2: Enhanced Models & Analytics (Future)
 
-After MVP sign-off, additional attribution models will be added:
-
-- First-touch attribution model.
-- Linear (equal-weight) attribution model.
 - Time-decay attribution model.
-- Model comparison reports.
+- Position-based (U-shaped) attribution model.
+- Model comparison side-by-side view.
+- Sparkline trends in drill-down panels.
+- Seeded demo data generator.
 
-### Phase 3: Advanced Reporting & Integration (Future)
+### Phase 3: Advanced Visualization & Integration (Future)
 
-- Campaign-level drill-down reports.
-- Dashboard UI with charts and visualizations.
+- Animated path replay ("watch a single user's journey").
 - Data export (CSV, JSON) for external BI tools.
 - Webhook/event stream ingestion.
+- Mobile-responsive layout.
+- Multi-tenant support.
 - Multi-tenant support.
 
 ## Quality Goals

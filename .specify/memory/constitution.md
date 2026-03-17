@@ -1,9 +1,9 @@
 <!--
 Sync Impact Report
-- Version change: 1.0.0 → 2.0.0 (project pivot from RSS Feed Reader to Marketing Attribution Reporter)
-- Modified principles: All 5 principles rewritten for new domain
-- Added sections: Core Principles (5), Technical Standards, Development Workflow, Governance
-- Removed sections: All RSS Feed Reader specific content
+- Version change: 2.0.0 → 3.0.0 (pivot to Animated Customer Journey with TypeScript monorepo)
+- Modified principles: All principles rewritten for new tech stack and frontend-focused architecture
+- Added sections: Core Principles (7), Technical Standards, Development Workflow, Governance
+- Removed sections: All .NET/C#/SQLite content
 - Templates checked:
   - .specify/templates/plan-template.md ✅ aligned
   - .specify/templates/spec-template.md ✅ aligned
@@ -11,56 +11,57 @@ Sync Impact Report
 - Follow-up TODOs: None
 -->
 
-# Contoso Marketing Attribution Reporter Constitution
+# Animated Customer Journey Constitution
 
 ## Core Principles
 
 ### I. Data Accuracy & Determinism
 
-All attribution calculations MUST be deterministic: the same input data MUST always produce the same attribution results. All monetary values (conversion values, costs, revenue, ROI) MUST use decimal types throughout the entire stack — from API input to database storage to report output. Floating-point types (float, double) MUST NOT be used for monetary calculations. Division-by-zero scenarios (e.g., ROI for channels with zero cost) MUST be handled explicitly and consistently.
+All attribution calculations MUST be deterministic: the same input data and model MUST always produce the same attribution results. All monetary values MUST use string-encoded decimals (Drizzle `decimal()` → PostgreSQL `NUMERIC`) throughout the entire stack — from API input to database storage to report output and Sankey visualization. JavaScript `number` type MUST NOT be used for monetary calculations. Division-by-zero scenarios (e.g., ROI for channels with zero cost) MUST be handled explicitly and consistently.
 
 ### II. Input Validation & Data Integrity
 
-All API endpoints MUST validate inputs before processing. Required fields, data types, value ranges, and format constraints MUST be enforced at the API boundary. Duplicate event/touchpoint IDs MUST be rejected cleanly without corrupting existing data. Timestamps MUST be validated as ISO 8601 format. Monetary values MUST be validated as positive (conversions) or non-negative (costs) decimals. The system MUST NOT allow invalid data to enter the database under any circumstances.
+All API endpoints MUST validate inputs using Zod schemas before processing. Required fields, data types, value ranges, and format constraints MUST be enforced at the API boundary. Duplicate event/touchpoint IDs MUST be rejected cleanly with 409 Conflict without corrupting existing data. Timestamps MUST be validated as ISO 8601 format. Monetary values MUST be validated as positive (conversions) or non-negative (costs) decimals. The system MUST NOT allow invalid data to enter the database under any circumstances.
 
 ### III. Clean Architecture & Extensibility
 
-The solution MUST maintain strict separation between API, business logic, and data access layers through distinct projects (AttributionReporter.API, AttributionReporter.Core, AttributionReporter.Data). Attribution models MUST be implemented using the Strategy pattern so new models (first-touch, linear, time-decay) can be added without modifying existing attribution code. Cross-layer dependencies MUST flow inward: API → Core ← Data. The Core project MUST NOT reference API or Data projects.
+The monorepo MUST maintain strict separation: `packages/attribution` (pure domain logic, zero framework deps), `packages/database` (Drizzle schema + connection), `apps/api` (Express HTTP layer), `apps/web` (React frontend). Attribution models MUST be implemented using the Strategy pattern so new models can be added without modifying existing code. Cross-layer dependencies MUST flow inward: apps depend on packages; packages MUST NOT depend on apps. The `packages/attribution` package MUST NOT import any framework or database code.
 
 ### IV. Auditability & Traceability
 
-Every attribution result MUST be traceable back to its source conversion event and the touchpoint it was attributed to. The system MUST store sufficient data to explain why any conversion was attributed to a particular channel. Unattributed conversions (those with no matching touchpoints) MUST be explicitly tracked and reported separately, never silently dropped.
+Every attribution result MUST be traceable back to its source conversion event, the attributed touchpoint(s), the model used, and the credit weight assigned. Unattributed conversions MUST be explicitly tracked and reported as "Unattributed" / "Unknown / Direct" in both the API and the Sankey visualization. The system MUST store sufficient data to explain why any conversion was attributed to a particular channel under any model.
 
 ### V. MVP-First Delivery
 
-Development MUST prioritize delivering a working MVP (event ingestion → last-touch attribution → channel ROI report) before adding additional attribution models or UI features. Each implementation phase MUST produce a runnable application. Features outside the defined MVP scope (first-touch/linear models, dashboard UI, streaming ingestion, multi-tenant) MUST NOT be implemented until explicitly requested. YAGNI principles apply.
+Development MUST deliver a working MVP (data ingestion → three-model attribution → ROI report → animated Sankey visualization) before adding enhanced models or features. Each implementation phase MUST produce a runnable application. Features outside the defined MVP scope (time-decay model, mobile layout, streaming ingestion, multi-tenant) MUST NOT be implemented until explicitly requested. YAGNI principles apply.
+
+### VI. Code Quality & Consistency
+
+Biome MUST be used for linting and formatting across the entire monorepo. TypeScript strict mode MUST be enabled in all packages and apps. Vitest MUST be used for testing. Tab indentation is the standard. All exported functions and types MUST have TypeScript type annotations.
+
+### VII. Visual Fidelity & Performance
+
+The Sankey diagram MUST render within 1 second for up to 5,000 journey paths. Attribution model toggle MUST animate within 500ms (smooth D3 transitions). The visualization MUST handle edge cases gracefully: empty state messages, collapsed long journeys, unattributed flow nodes. Rapid model toggles MUST interrupt cleanly without visual glitches.
 
 ## Technical Standards
 
-- **Framework**: ASP.NET Core 8.0 Web API (API-only, no frontend for MVP).
-- **Database**: SQLite with Entity Framework Core for local data persistence. All schema changes MUST use EF Core migrations.
-- **Decimal Types**: All monetary values MUST use `decimal` type in C# and appropriate decimal column types in the database.
-- **API Style**: RESTful endpoints with JSON request/response payloads and standard HTTP status codes.
-- **API Documentation**: Swagger/OpenAPI MUST be enabled for all endpoints.
-- **Attribution Models**: Implemented via Strategy pattern in the Core project. MVP implements last-touch only.
-- **Configuration**: All environment-specific settings (connection strings, ports) MUST be managed through `appsettings.json` and environment variables — never hardcoded.
-- **NuGet Packages**: Only well-maintained, Microsoft-supported or widely-adopted packages are permitted.
+- **Language**: TypeScript 5.9+ / Node.js 20 LTS.
+- **Monorepo**: npm workspaces, Turborepo for build orchestration, Biome for linting/formatting.
+- **Backend**: Express.js REST API with Zod input validation.
+- **Frontend**: React 19 + Vite, D3.js (d3-sankey), TanStack Query, Zustand.
+- **Database**: PostgreSQL via Drizzle ORM. All schema changes MUST use Drizzle migrations.
+- **Decimal Types**: All monetary values MUST use Drizzle `decimal()` (PostgreSQL `NUMERIC`) and be represented as strings in TypeScript.
+- **API Style**: RESTful endpoints with JSON payloads and standard HTTP status codes.
+- **Attribution Models**: Implemented via Strategy pattern in `packages/attribution`. MVP implements last-touch, first-touch, and linear.
+- **Configuration**: All environment-specific settings MUST be managed through environment variables or `.env` files — never hardcoded.
 
 ## Development Workflow
 
 - **Source Control**: Git with GitHub. All changes MUST be committed with descriptive messages.
-- **Branching**: Feature work SHOULD be done on feature branches and merged via pull requests.
 - **Spec-Driven Development**: All features MUST be specified in spec.md, planned in plan.md, and broken into tasks in tasks.md before implementation begins.
-- **Testing**: All API endpoints MUST be manually testable via Swagger UI or curl. Attribution calculation correctness MUST be verified with known test data.
-- **Code Review**: All production code changes SHOULD be reviewed for adherence to this constitution's principles before merging.
-- **Dependency Injection**: All service registrations MUST be centralized in `Program.cs`. Constructor injection is the only permitted DI pattern.
+- **Testing**: Attribution strategies MUST have Vitest unit tests. API endpoints MUST be manually testable via curl or Swagger. Frontend components MUST be testable in isolation.
+- **Dependency Injection**: Services are wired in the Express app via constructor injection or factory functions.
 
 ## Governance
 
-This constitution governs all development activities for the Contoso Marketing Attribution Reporter project. All implementation decisions, code reviews, and feature additions MUST comply with the principles defined above.
-
-- **Amendment Process**: Any change to this constitution MUST be documented with a version bump, rationale, and updated date. MAJOR changes (removing or redefining principles) require stakeholder review. MINOR changes (adding principles or expanding guidance) require team review. PATCH changes (clarifications, typo fixes) can be made directly.
-- **Compliance**: Every pull request and code review MUST verify adherence to these principles. Non-compliant code MUST be revised before merging.
-- **Conflict Resolution**: If principles conflict, prioritize in this order: Data Accuracy > Security > Correctness > Maintainability > Performance > Simplicity.
-
-**Version**: 2.0.0 | **Ratified**: 2026-03-16 | **Last Amended**: 2026-03-16
+This constitution governs all development activities for the Animated Customer Journey project. All implementation decisions, code reviews, and feature additions MUST comply with the principles defined above.

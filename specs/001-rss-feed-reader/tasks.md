@@ -1,4 +1,4 @@
-# Tasks: Marketing Attribution Reporter MVP
+# Tasks: Animated Customer Journey MVP
 
 **Input**: Design documents from `/specs/001-rss-feed-reader/`
 **Prerequisites**: plan.md (required), spec.md (required), research.md, data-model.md, contracts/api-endpoints.md, quickstart.md
@@ -6,129 +6,143 @@
 ## Format: `[ID] [P?] [Story] Description`
 
 - **[P]**: Can run in parallel (different files, no dependencies)
-- **[Story]**: Which user story this task belongs to (e.g., US1, US2, US3, US4)
+- **[Story]**: Which user story this task belongs to (e.g., US1–US7)
 - Include exact file paths in descriptions
 
 ---
 
-## Phase 1: Setup (Shared Infrastructure)
+## Phase 1: Monorepo Setup
 
-**Purpose**: Create the .NET solution structure and configure dependencies
+**Purpose**: Initialize the TypeScript monorepo with npm workspaces, Turborepo, Biome, and scaffold all packages/apps
 
-- [ ] T001 Create .NET solution file at `MarketingAttributionReporter/AttributionReporter.sln`
-- [ ] T002 Create ASP.NET Core Web API project at `MarketingAttributionReporter/AttributionReporter.API/`
-- [ ] T003 [P] Create class library project at `MarketingAttributionReporter/AttributionReporter.Core/`
-- [ ] T004 [P] Create class library project at `MarketingAttributionReporter/AttributionReporter.Data/`
-- [ ] T005 Add project references: API → Core, API → Data, Data → Core
-- [ ] T006 Add NuGet packages: `Microsoft.EntityFrameworkCore.Sqlite` and `Microsoft.EntityFrameworkCore.Design` to Data project, `Swashbuckle.AspNetCore` to API project
-- [ ] T007 Configure `Program.cs` in `MarketingAttributionReporter/AttributionReporter.API/Program.cs` with DI, Swagger, and SQLite connection string from appsettings.json
-- [ ] T008 Configure `appsettings.json` in `MarketingAttributionReporter/AttributionReporter.API/appsettings.json` with SQLite connection string and Kestrel port 5151
+- [ ] T001 Create root `animated-customer-journey/package.json` with npm workspaces config (apps/\*, packages/\*)
+- [ ] T002 Create `animated-customer-journey/turbo.json` with build/dev/test/lint task pipelines
+- [ ] T003 Create `animated-customer-journey/biome.json` with TypeScript linting, tab indentation, formatting rules
+- [ ] T004 Create root `animated-customer-journey/tsconfig.base.json` with strict mode, ES2022 target, shared compiler options
+- [ ] T005 [P] Scaffold `packages/logger/` — package.json, tsconfig.json, `src/index.ts` (structured JSON logger with configurable levels)
+- [ ] T006 [P] Scaffold `packages/database/` — package.json, tsconfig.json, `drizzle.config.ts`, `src/db.ts` (pg pool + Drizzle), `src/schema/index.ts`
+- [ ] T007 [P] Scaffold `packages/attribution/` — package.json, tsconfig.json, `vitest.config.ts`, `src/index.ts`
+- [ ] T008 [P] Scaffold `apps/api/` — package.json, tsconfig.json, `vitest.config.ts`, `src/main.ts` (Express entrypoint with CORS, JSON parsing)
+- [ ] T009 [P] Scaffold `apps/web/` — package.json, tsconfig.json, `vite.config.ts`, `index.html`, `src/main.tsx`, `src/App.tsx`
+- [ ] T010 Install all dependencies: express, zod, drizzle-orm, pg, d3, d3-sankey, react, @tanstack/react-query, zustand, vitest, etc.
+- [ ] T011 Verify `npm install` and `npx turbo build` succeed from monorepo root
 
----
-
-## Phase 2: Foundational (Blocking Prerequisites)
-
-**Purpose**: Core data layer and shared infrastructure that ALL user stories depend on
-
-**CRITICAL**: No user story work can begin until this phase is complete
-
-- [ ] T009 [P] Create `ConversionEvent` entity model in `MarketingAttributionReporter/AttributionReporter.Core/Models/ConversionEvent.cs`
-- [ ] T010 [P] Create `Touchpoint` entity model in `MarketingAttributionReporter/AttributionReporter.Core/Models/Touchpoint.cs`
-- [ ] T011 [P] Create `AttributionResult` entity model in `MarketingAttributionReporter/AttributionReporter.Core/Models/AttributionResult.cs`
-- [ ] T012 Create `AppDbContext` with entity configurations (decimal precision, indexes, unique constraints) in `MarketingAttributionReporter/AttributionReporter.Data/AppDbContext.cs`
-- [ ] T013 Create EF Core initial migration in `MarketingAttributionReporter/AttributionReporter.Data/Migrations/`
-- [ ] T014 [P] Create `IConversionEventRepository` interface in `MarketingAttributionReporter/AttributionReporter.Core/Interfaces/IConversionEventRepository.cs`
-- [ ] T015 [P] Create `ITouchpointRepository` interface in `MarketingAttributionReporter/AttributionReporter.Core/Interfaces/ITouchpointRepository.cs`
-- [ ] T016 [P] Create `IAttributionResultRepository` interface in `MarketingAttributionReporter/AttributionReporter.Core/Interfaces/IAttributionResultRepository.cs`
-- [ ] T017 [P] Implement `ConversionEventRepository` in `MarketingAttributionReporter/AttributionReporter.Data/Repositories/ConversionEventRepository.cs`
-- [ ] T018 [P] Implement `TouchpointRepository` in `MarketingAttributionReporter/AttributionReporter.Data/Repositories/TouchpointRepository.cs`
-- [ ] T019 [P] Implement `AttributionResultRepository` in `MarketingAttributionReporter/AttributionReporter.Data/Repositories/AttributionResultRepository.cs`
-- [ ] T020 Register all repositories and DbContext in DI container in `MarketingAttributionReporter/AttributionReporter.API/Program.cs`
-- [ ] T021 Configure automatic database migration on startup in `MarketingAttributionReporter/AttributionReporter.API/Program.cs`
-
-**Checkpoint**: Foundation ready — database schema exists, repositories work, DI is configured. User story implementation can now begin.
+**Checkpoint**: Monorepo scaffolded, all packages resolve, Turborepo builds.
 
 ---
 
-## Phase 3: User Story 1 — Ingest Conversion Events (Priority: P1) MVP
+## Phase 2: Database Schema & Domain Models
 
-**Goal**: Marketing analysts can submit conversion events via POST API with full validation
+**Purpose**: Define Drizzle schema, domain types, and strategy interfaces
 
-**Independent Test**: POST a valid conversion event via curl/Swagger → get 201. POST invalid data → get 400. POST duplicate → get 409.
+- [ ] T012 [P] Create `packages/database/src/schema/conversion-events.ts` — conversion_events table (id, eventId, userId, conversionValue decimal, timestamp, metadata, createdAt)
+- [ ] T013 [P] Create `packages/database/src/schema/touchpoints.ts` — touchpoints table (id, touchpointId, userId, channelName, campaignName, timestamp, cost decimal, createdAt)
+- [ ] T014 [P] Create `packages/database/src/schema/attribution-results.ts` — attribution_results table (id, conversionEventId FK, touchpointId FK nullable, attributionModel, creditWeight decimal, attributedValue decimal, channelName, calculatedAt)
+- [ ] T015 Create `packages/database/src/schema/index.ts` — re-export all schemas
+- [ ] T016 Create `packages/database/src/db.ts` — pg connection pool + Drizzle instance from DATABASE_URL env var
+- [ ] T017 Generate initial Drizzle migration via `npx drizzle-kit generate`
+- [ ] T018 [P] Create `packages/attribution/src/models/conversion-event.ts` — TypeScript domain type
+- [ ] T019 [P] Create `packages/attribution/src/models/touchpoint.ts` — TypeScript domain type
+- [ ] T020 [P] Create `packages/attribution/src/models/attribution-result.ts` — TypeScript domain type with creditWeight (0.0–1.0)
+- [ ] T021 Create `packages/attribution/src/strategies/attribution-strategy.ts` — `IAttributionStrategy` interface: `attribute(conversion, touchpoints): AttributionResult[]`
 
-### Implementation for User Story 1
-
-- [ ] T022 [P] [US1] Create `CreateConversionEventRequest` DTO in `MarketingAttributionReporter/AttributionReporter.API/DTOs/CreateConversionEventRequest.cs` with validation attributes (Required, Range > 0)
-- [ ] T023 [P] [US1] Create `ConversionEventResponse` DTO in `MarketingAttributionReporter/AttributionReporter.API/DTOs/ConversionEventResponse.cs`
-- [ ] T024 [US1] Implement `ConversionEventsController` with POST and GET endpoints in `MarketingAttributionReporter/AttributionReporter.API/Controllers/ConversionEventsController.cs` — validate input, check for duplicate EventId (return 409), persist via repository, return 201 with response DTO
-- [ ] T025 [US1] Verify US1 acceptance scenarios via Swagger: valid POST returns 201, missing fields returns 400, negative value returns 400, invalid timestamp returns 400, duplicate EventId returns 409
-
-**Checkpoint**: Conversion event ingestion is fully functional. Analysts can submit and retrieve conversion events.
-
----
-
-## Phase 4: User Story 2 — Ingest Marketing Touchpoints (Priority: P1) MVP
-
-**Goal**: Marketing analysts can submit touchpoint data via POST API with full validation
-
-**Independent Test**: POST a valid touchpoint via curl/Swagger → get 201. POST invalid data → get 400. POST duplicate → get 409.
-
-### Implementation for User Story 2
-
-- [ ] T026 [P] [US2] Create `CreateTouchpointRequest` DTO in `MarketingAttributionReporter/AttributionReporter.API/DTOs/CreateTouchpointRequest.cs` with validation attributes (Required channel, optional cost >= 0)
-- [ ] T027 [P] [US2] Create `TouchpointResponse` DTO in `MarketingAttributionReporter/AttributionReporter.API/DTOs/TouchpointResponse.cs`
-- [ ] T028 [US2] Implement `TouchpointsController` with POST and GET endpoints in `MarketingAttributionReporter/AttributionReporter.API/Controllers/TouchpointsController.cs` — validate input, check for duplicate TouchpointId (return 409), persist via repository, return 201 with response DTO
-- [ ] T029 [US2] Verify US2 acceptance scenarios via Swagger: valid POST returns 201, missing channel returns 400, negative cost returns 400, duplicate TouchpointId returns 409
-
-**Checkpoint**: Both ingestion endpoints work. Analysts can submit conversion events and touchpoints.
+**Checkpoint**: Database schema defined, domain types exist, strategy interface ready.
 
 ---
 
-## Phase 5: User Story 3 — Last-Touch Attribution (Priority: P2) MVP
+## Phase 3: Attribution Strategies (US3)
 
-**Goal**: System attributes each conversion to the last touchpoint before it, using deterministic last-touch logic
+**Purpose**: Implement all three attribution models with unit tests
 
-**Independent Test**: Submit known touchpoints + conversion for a user → run attribution → verify the correct (last) touchpoint is credited with 100% of conversion value. Submit a conversion with no touchpoints → verify it's marked unattributed.
+- [ ] T022 [US3] Implement `packages/attribution/src/strategies/last-touch.strategy.ts` — 100% credit to last touchpoint before conversion; alphabetical tie-breaking
+- [ ] T023 [US3] Implement `packages/attribution/src/strategies/first-touch.strategy.ts` — 100% credit to first touchpoint; alphabetical tie-breaking
+- [ ] T024 [US3] Implement `packages/attribution/src/strategies/linear.strategy.ts` — equal 1/N split, rounding correction on last; alphabetical tie-breaking
+- [ ] T025 [US3] Create `packages/attribution/src/services/attribution.service.ts` — orchestrates: fetch touchpoints for user, filter by timestamp < conversion, sort, delegate to strategy, return results
+- [ ] T026 [P] [US3] Write Vitest tests `packages/attribution/src/__tests__/last-touch.test.ts` — happy path, no touchpoints (unattributed), tie-breaking, single touchpoint
+- [ ] T027 [P] [US3] Write Vitest tests `packages/attribution/src/__tests__/first-touch.test.ts` — same scenarios
+- [ ] T028 [P] [US3] Write Vitest tests `packages/attribution/src/__tests__/linear.test.ts` — equal split, rounding, single touchpoint, no touchpoints
+- [ ] T029 Verify all tests pass: `npx turbo test --filter=@acj/attribution`
 
-### Implementation for User Story 3
-
-- [ ] T030 [P] [US3] Create `IAttributionStrategy` interface in `MarketingAttributionReporter/AttributionReporter.Core/Interfaces/IAttributionStrategy.cs` with method `Task<AttributionResult> Attribute(ConversionEvent conversion, IReadOnlyList<Touchpoint> touchpoints)`
-- [ ] T031 [US3] Implement `LastTouchAttributionStrategy` in `MarketingAttributionReporter/AttributionReporter.Core/Services/LastTouchAttributionStrategy.cs` — find the touchpoint with the latest timestamp before conversion timestamp, assign 100% value, return unattributed result if no matching touchpoints
-- [ ] T032 [US3] Implement `AttributionService` in `MarketingAttributionReporter/AttributionReporter.Core/Services/AttributionService.cs` — for each conversion, get touchpoints by UserSessionId, filter by timestamp < conversion timestamp, call strategy, persist result
-- [ ] T033 [US3] Register `IAttributionStrategy` (as `LastTouchAttributionStrategy`) and `AttributionService` in DI in `MarketingAttributionReporter/AttributionReporter.API/Program.cs`
-- [ ] T034 [US3] Implement `AttributionController` with POST `/api/attribution/run` endpoint in `MarketingAttributionReporter/AttributionReporter.API/Controllers/AttributionController.cs` — run attribution, return processed/attributed/unattributed counts
-- [ ] T035 [US3] Verify US3 acceptance scenarios: user with 3 touchpoints → last one gets credit; user with no touchpoints → unattributed; same data twice → same results (deterministic)
-
-**Checkpoint**: Full attribution pipeline works. Events in → attribution run → results stored.
+**Checkpoint**: All three attribution models implemented and tested.
 
 ---
 
-## Phase 6: User Story 4 — Channel-Level ROI Report (Priority: P3) MVP
+## Phase 4: API Routes (US1, US2, US3, US4)
 
-**Goal**: Generate a channel-level ROI summary with revenue, cost, conversion count, and ROI percentage per channel
+**Purpose**: Implement Express REST API with Zod validation
 
-**Independent Test**: Ingest known data, run attribution, then GET `/api/reports/channel-roi` → verify channel totals match expected values, zero-cost channels show null ROI, unattributed conversions appear separately.
+- [ ] T030 [P] [US1] Create `apps/api/src/validation/conversion-event.schema.ts` — Zod schema for POST body
+- [ ] T031 [P] [US2] Create `apps/api/src/validation/touchpoint.schema.ts` — Zod schema for POST body
+- [ ] T032 [P] Create `apps/api/src/validation/report-query.schema.ts` — Zod schema for report query params (model, startDate, endDate)
+- [ ] T033 Create `apps/api/src/middleware/error-handler.ts` — global error handler (Zod errors → 400, duplicates → 409, unhandled → 500)
+- [ ] T034 Create `apps/api/src/middleware/request-logger.ts` — log method, path, status, duration
+- [ ] T035 [US1] Create `apps/api/src/routes/conversion-events.ts` — POST (validate, check duplicate, insert, return 201) + GET (list all)
+- [ ] T036 [US2] Create `apps/api/src/routes/touchpoints.ts` — POST (validate, check duplicate, insert, return 201) + GET (list all)
+- [ ] T037 [US3] Create `apps/api/src/routes/attribution.ts` — POST /run (execute attribution with model param), GET /results (filterable by model)
+- [ ] T038 [US4] Create `apps/api/src/routes/reports.ts` — GET /channel-roi (accept model, startDate, endDate params)
+- [ ] T039 [US5] Create `apps/api/src/routes/journeys.ts` — GET /sankey (aggregated journey data for Sankey: nodes, links, volumes, per-model)
+- [ ] T040 [US5] Create journey service `packages/attribution/src/services/journey.service.ts` — build ordered journey paths from touchpoints, aggregate into Sankey nodes/links
+- [ ] T041 [US4] Create report service `packages/attribution/src/services/report.service.ts` — aggregate by channel, ROI calculation, date range filter
+- [ ] T042 Wire all routes in `apps/api/src/main.ts` — mount routers, middleware, CORS, Swagger/OpenAPI docs
+- [ ] T043 Verify API starts and all endpoints respond: `npm run dev --workspace=apps/api`
 
-### Implementation for User Story 4
-
-- [ ] T036 [P] [US4] Create `ChannelReportResponse` and `ChannelReportEntry` DTOs in `MarketingAttributionReporter/AttributionReporter.API/DTOs/ChannelReportResponse.cs` — channel name, total revenue, total cost, conversion count, ROI percentage (nullable decimal)
-- [ ] T037 [US4] Implement `ReportService` in `MarketingAttributionReporter/AttributionReporter.Core/Services/ReportService.cs` — aggregate attribution results by channel, sum revenue and costs, calculate ROI = ((revenue - cost) / cost) * 100 with null for zero-cost channels, include "Unattributed" entry, support optional date range filter
-- [ ] T038 [US4] Create `IReportService` interface in `MarketingAttributionReporter/AttributionReporter.Core/Interfaces/IReportService.cs` and register in DI in `MarketingAttributionReporter/AttributionReporter.API/Program.cs`
-- [ ] T039 [US4] Implement `ReportsController` with GET `/api/reports/channel-roi` endpoint in `MarketingAttributionReporter/AttributionReporter.API/Controllers/ReportsController.cs` — accept optional startDate/endDate query params, call ReportService, return JSON report
-- [ ] T040 [US4] Verify US4 acceptance scenarios: channel with $500 revenue/$200 cost → ROI 150%; zero-cost channel → ROI null; unattributed entry present; empty database → empty report; date range filter works
-
-**Checkpoint**: Complete MVP pipeline works end-to-end: ingest → attribute → report.
+**Checkpoint**: Full API functional — all CRUD + attribution + report + Sankey endpoints working.
 
 ---
 
-## Phase 7: Polish & Cross-Cutting Concerns
+## Phase 5: Frontend — Sankey Flow (US5)
 
-**Purpose**: Improvements that affect multiple user stories
+**Purpose**: Build the animated Sankey diagram with D3.js
 
-- [ ] T041 [P] Ensure all API error responses follow consistent format (no stack traces, clear messages) across all controllers
-- [ ] T042 [P] Add global exception handler middleware in `MarketingAttributionReporter/AttributionReporter.API/Program.cs` to catch unhandled exceptions and return 500 with safe message
-- [ ] T043 Run full end-to-end test following `specs/001-rss-feed-reader/quickstart.md` curl commands — verify complete flow: add touchpoints → add conversion → run attribution → get report
-- [ ] T044 Verify data persistence: stop application, restart, confirm all data is still present via GET endpoints
+- [ ] T044 [US5] Create `apps/web/src/lib/api-client.ts` — typed fetch wrapper for all API endpoints
+- [ ] T045 [US5] Create `apps/web/src/types/index.ts` — shared frontend types (SankeyNode, SankeyLink, ChannelReport, etc.)
+- [ ] T046 [US5] Create `apps/web/src/stores/attribution-model.store.ts` — Zustand store for selected model (last-touch | first-touch | linear)
+- [ ] T047 [P] [US5] Create `apps/web/src/hooks/useJourneys.ts` — TanStack Query hook: fetch /api/journeys/sankey?model=<selected>
+- [ ] T048 [P] [US5] Create `apps/web/src/hooks/useChannelReport.ts` — TanStack Query hook: fetch /api/reports/channel-roi?model=<selected>
+- [ ] T049 [P] [US5] Create `apps/web/src/hooks/useAttribution.ts` — TanStack Query hook: run + fetch attribution
+- [ ] T050 [US5] Create `apps/web/src/lib/sankey-transforms.ts` — transform API journey data → D3 sankey layout (nodes, links, positions)
+- [ ] T051 [US5] Create `apps/web/src/components/SankeyFlow/SankeyFlow.tsx` — main Sankey diagram: D3 layout, SVG rendering, nodes + links
+- [ ] T052 [US5] Create `apps/web/src/components/SankeyFlow/SankeyNode.tsx` — individual channel node component
+- [ ] T053 [US5] Create `apps/web/src/components/SankeyFlow/SankeyLink.tsx` — animated flow link component with particle/gradient animation
+- [ ] T054 [US5] Create `apps/web/src/components/SankeyFlow/SankeyTooltip.tsx` — hover tooltip with flow details
+- [ ] T055 [US5] Create `apps/web/src/components/SankeyFlow/useSankeyData.ts` — hook: transforms API data → D3 sankey layout, manages layout state
+- [ ] T056 Wire Sankey into `apps/web/src/App.tsx` — render SankeyFlow with data from useJourneys hook
+- [ ] T057 Verify Sankey renders with mock/seed data in browser
+
+**Checkpoint**: Animated Sankey diagram renders and flows.
+
+---
+
+## Phase 6: Frontend — Interactivity (US6, US7)
+
+**Purpose**: Attribution model toggle, animated transitions, drill-down, summary cards
+
+- [ ] T058 [US6] Create `apps/web/src/components/AttributionToggle/AttributionToggle.tsx` — segmented control for model selection, updates Zustand store
+- [ ] T059 [US6] Implement D3 transition animations in SankeyFlow — when model changes, animate link thicknesses and node sizes smoothly (500ms ease-in-out)
+- [ ] T060 [US6] Handle rapid toggles — interrupt current animation, transition to new target state
+- [ ] T061 [US4] Create `apps/web/src/components/ReportSummary/ReportSummary.tsx` — ROI summary cards (total revenue, cost, conversions, ROI per channel)
+- [ ] T062 [US4] Create `apps/web/src/components/ReportSummary/ChannelCard.tsx` — individual channel card component
+- [ ] T063 [US7] Create `apps/web/src/components/ChannelDetail/ChannelDetailPanel.tsx` — slide-out panel on node click: channel metrics, top 5 paths
+- [ ] T064 [US7] Create `apps/web/src/components/ChannelDetail/ChannelMetricsTable.tsx` — metrics table for selected channel
+- [ ] T065 [P] Create `apps/web/src/components/common/LoadingState.tsx` — loading spinner/skeleton
+- [ ] T066 [P] Create `apps/web/src/components/common/ErrorState.tsx` — error display
+- [ ] T067 [P] Create `apps/web/src/components/common/EmptyState.tsx` — "No data yet" message
+- [ ] T068 Wire all components in `apps/web/src/App.tsx` — layout with Sankey, toggle, summary cards, detail panel
+
+**Checkpoint**: Full interactive frontend — model toggle animates Sankey, drill-down works, summary cards update.
+
+---
+
+## Phase 7: Polish & Testing
+
+**Purpose**: Edge cases, demo data, end-to-end verification
+
+- [ ] T069 Handle edge cases in Sankey: unattributed → "Unknown / Direct" node, long journeys (>20 touchpoints) → collapsed summary nodes, empty state
+- [ ] T070 Create seed data script `apps/api/src/seed.ts` — populate database with sample touchpoints, conversions across multiple channels/users for demo
+- [ ] T071 Verify model toggle: switch between all three models, confirm link thicknesses change, summary cards update, animation completes within 500ms
+- [ ] T072 Verify drill-down: click channel node, panel opens with correct metrics, change model → panel updates
+- [ ] T073 Run full E2E test: seed data → open frontend → view Sankey → toggle models → drill down → verify report numbers match API
+- [ ] T074 Verify data persistence: stop all services, restart, confirm all data available
 
 ---
 
@@ -136,64 +150,20 @@
 
 ### Phase Dependencies
 
-- **Setup (Phase 1)**: No dependencies — start immediately
-- **Foundational (Phase 2)**: Depends on Setup completion — BLOCKS all user stories
-- **US1 (Phase 3)**: Depends on Foundational — can start immediately after Phase 2
-- **US2 (Phase 4)**: Depends on Foundational — can run in parallel with US1
-- **US3 (Phase 5)**: Depends on Foundational + US1 + US2 (needs events and touchpoints in database)
-- **US4 (Phase 6)**: Depends on US3 (needs attribution results to report on)
-- **Polish (Phase 7)**: Depends on all user stories being complete
-
-### Within Each User Story
-
-- DTOs before controllers (controllers reference DTOs)
-- Services before controllers (controllers call services)
-- Implementation before verification
+- **Phase 1 (Setup)**: No dependencies — start immediately
+- **Phase 2 (Schema)**: Depends on Phase 1
+- **Phase 3 (Attribution)**: Depends on Phase 2 (domain types + strategy interface)
+- **Phase 4 (API)**: Depends on Phase 2 + Phase 3
+- **Phase 5 (Sankey)**: Depends on Phase 4 (needs API endpoints to fetch data)
+- **Phase 6 (Interactivity)**: Depends on Phase 5 (builds on Sankey)
+- **Phase 7 (Polish)**: Depends on all previous phases
 
 ### Parallel Opportunities
 
-- T003 and T004 (Core and Data projects) can be created in parallel
-- T009, T010, T011 (entity models) can be created in parallel
-- T014, T015, T016 (repository interfaces) can be created in parallel
-- T017, T018, T019 (repository implementations) can be created in parallel
-- T022 and T023 (US1 DTOs) can be created in parallel
-- T026 and T027 (US2 DTOs) can be created in parallel
-- US1 and US2 (Phases 3-4) can be implemented in parallel since they're independent ingestion endpoints
-
----
-
-## Implementation Strategy
-
-### MVP First (Recommended)
-
-1. Complete Phase 1: Setup (T001–T008)
-2. Complete Phase 2: Foundational (T009–T021)
-3. Complete Phase 3: US1 — Conversion Event Ingestion (T022–T025)
-4. Complete Phase 4: US2 — Touchpoint Ingestion (T026–T029)
-5. Complete Phase 5: US3 — Last-Touch Attribution (T030–T035)
-6. Complete Phase 6: US4 — Channel ROI Report (T036–T040)
-7. Complete Phase 7: Polish (T041–T044)
-8. **Validate**: Run full end-to-end flow per quickstart.md
-
-**Tasks**: T001–T044 (44 tasks)  
-**Deliverable**: Full MVP — ingest events + touchpoints, run last-touch attribution, generate channel-level ROI report with persistence.
-
-### Incremental Delivery
-
-1. Setup + Foundational → Foundation ready
-2. Add US1 + US2 → Ingestion works → Can demo data capture
-3. Add US3 → Attribution works → Can demo channel attribution
-4. Add US4 → Reports work → Full MVP demo
-5. Polish → Production-ready MVP
-
----
-
-## Notes
-
-- [P] tasks = different files, no dependencies
-- [Story] label maps task to specific user story for traceability
-- All monetary values MUST use `decimal` type (Constitution Principle I)
-- All API inputs MUST be validated (Constitution Principle II)
-- Attribution logic MUST be in Core project via Strategy pattern (Constitution Principle III)
-- Commit after each task or logical group
-- Stop at any checkpoint to validate story independently
+- T005, T006, T007, T008, T009 (package scaffolding) can all run in parallel
+- T012, T013, T014 (schema tables) can run in parallel
+- T018, T019, T020 (domain types) can run in parallel
+- T026, T027, T028 (strategy tests) can run in parallel
+- T030, T031, T032 (Zod schemas) can run in parallel
+- T047, T048, T049 (TanStack Query hooks) can run in parallel
+- T065, T066, T067 (common UI components) can run in parallel
