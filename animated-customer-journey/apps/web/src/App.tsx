@@ -1,14 +1,32 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useAttributionModelStore } from "./stores/attribution-model.store";
-import { getMockSankeyData, getMockChannelStats } from "./data/mock-journeys";
+import {
+	getMockSankeyData,
+	getMockChannelStats,
+	getMockSummary,
+	getChannelDeltas,
+} from "./data/mock-journeys";
 import { SankeyFlow } from "./components/SankeyFlow";
 import { AttributionToggle } from "./components/AttributionToggle";
 import { ChannelReportTable } from "./components/ChannelReportTable";
+import { SummaryStrip } from "./components/SummaryStrip";
+import { DateRangeToggle, type DateRange } from "./components/DateRangeToggle";
 
 export function App() {
 	const model = useAttributionModelStore((s) => s.model);
 	const sankeyData = useMemo(() => getMockSankeyData(model), [model]);
 	const channelStats = useMemo(() => getMockChannelStats(model), [model]);
+	const summary = useMemo(() => getMockSummary(model), [model]);
+	const deltas = useMemo(() => getChannelDeltas(model), [model]);
+
+	const [isAnimating, setIsAnimating] = useState(false);
+	const [animationKey, setAnimationKey] = useState("init");
+	const [dateRange, setDateRange] = useState<DateRange>("30D");
+
+	function handleAnimationEnd() {
+		setIsAnimating(false);
+		setAnimationKey(`${model}-${Date.now()}`);
+	}
 
 	return (
 		<div
@@ -21,14 +39,29 @@ export function App() {
 			}}
 		>
 			{/* Header */}
-			<header style={{ marginBottom: "2rem" }}>
-				<h1 style={{ fontSize: "1.75rem", marginBottom: "0.25rem" }}>
-					Animated Customer Journey
-				</h1>
-				<p style={{ color: "#666", margin: 0, fontSize: "0.95rem" }}>
-					Interactive Sankey flow diagram — conversion paths through marketing channels
-				</p>
+			<header
+				style={{
+					display: "flex",
+					alignItems: "flex-start",
+					justifyContent: "space-between",
+					marginBottom: "1.5rem",
+					flexWrap: "wrap",
+					gap: "1rem",
+				}}
+			>
+				<div>
+					<h1 style={{ fontSize: "1.75rem", marginBottom: "0.25rem", margin: 0 }}>
+						Animated Customer Journey
+					</h1>
+					<p style={{ color: "#666", margin: "0.25rem 0 0", fontSize: "0.95rem" }}>
+						Interactive Sankey flow diagram — conversion paths through marketing channels
+					</p>
+				</div>
+				<DateRangeToggle value={dateRange} onChange={setDateRange} />
 			</header>
+
+			{/* Summary strip */}
+			<SummaryStrip summary={summary} model={model} />
 
 			{/* Controls */}
 			<section
@@ -36,7 +69,7 @@ export function App() {
 					display: "flex",
 					alignItems: "center",
 					gap: "1rem",
-					marginBottom: "1.5rem",
+					marginBottom: "1.25rem",
 				}}
 			>
 				<span style={{ fontWeight: 500, fontSize: "0.9rem" }}>Attribution Model:</span>
@@ -53,7 +86,13 @@ export function App() {
 					marginBottom: "2rem",
 				}}
 			>
-				<SankeyFlow data={sankeyData} width={1000} height={480} />
+				<SankeyFlow
+					data={sankeyData}
+					width={1000}
+					height={480}
+					onAnimationStart={() => setIsAnimating(true)}
+					onAnimationEnd={handleAnimationEnd}
+				/>
 			</section>
 
 			{/* Channel report table */}
@@ -68,7 +107,7 @@ export function App() {
 							marginLeft: "0.75rem",
 						}}
 					>
-						({model})
+						({model} · last {dateRange})
 					</span>
 				</h2>
 				<div
@@ -79,7 +118,12 @@ export function App() {
 						overflow: "hidden",
 					}}
 				>
-					<ChannelReportTable stats={channelStats} />
+					<ChannelReportTable
+						stats={channelStats}
+						deltas={deltas}
+						animationKey={animationKey}
+						faded={isAnimating}
+					/>
 				</div>
 			</section>
 
@@ -93,7 +137,7 @@ export function App() {
 					fontSize: "0.8rem",
 				}}
 			>
-				Mock data • Connect the API at <code>/api/health</code> for live data
+				Mock data · last {dateRange} · Connect the API at <code>/api/health</code> for live data
 			</footer>
 		</div>
 	);
